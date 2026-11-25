@@ -327,7 +327,7 @@ struct FrameGenerator::Impl
         bool cut = false;
     };
 
-    Slot slots[kSlots];
+    Slot fslots[kSlots];
     std::deque<int> hist; // slot indices of distinct frames, oldest first
     Img flowout_f;
     Img flowout_b;
@@ -790,7 +790,7 @@ void FrameGenerator::Impl::destroyResources()
     }
     if (gpu)
         pl_gpu_finish(gpu);
-    for (auto &s : slots) {
+    for (auto &s : fslots) {
         if (s.rgb)
             pl_tex_destroy(gpu, &s.rgb);
         destroyTex(s.luma);
@@ -871,7 +871,7 @@ bool FrameGenerator::Impl::allocate(int w, int h, QString *why)
         return false;
     };
 
-    for (auto &s : slots) {
+    for (auto &s : fslots) {
         pl_tex_params rp = {};
         rp.w = W;
         rp.h = H;
@@ -1372,7 +1372,7 @@ pl_frame FrameGenerator::Impl::rgbFrame(pl_tex tex, const pl_frame *target) cons
 void FrameGenerator::Impl::resetHistory()
 {
     hist.clear();
-    for (auto &s : slots) {
+    for (auto &s : fslots) {
         s.flow_ok = false;
         s.cut = false;
         s.pts = 0.0;
@@ -1396,7 +1396,7 @@ void FrameGenerator::Impl::ingestFrame(const pl_frame *frame, double pts, const 
     }
     if (slot < 0)
         return;
-    Slot &s = slots[slot];
+    Slot &s = fslots[slot];
 
     pl_frame t = rgbFrame(s.rgb, target);
     pl_render_params p = *params;
@@ -1410,7 +1410,7 @@ void FrameGenerator::Impl::ingestFrame(const pl_frame *frame, double pts, const 
         return;
     }
 
-    Slot *prev = hist.empty() ? nullptr : &slots[hist.back()];
+    Slot *prev = hist.empty() ? nullptr : &fslots[hist.back()];
     bool cut = false;
     if (prev) {
         double mean = 0.0, max_block = 0.0;
@@ -1558,12 +1558,12 @@ bool FrameGenerator::process(const pl_frame_mix *mix, double display_pts, double
     Impl::Slot *a = nullptr;
     Impl::Slot *b = nullptr;
     const int n = static_cast<int>(x.hist.size());
-    if (target_time <= x.slots[x.hist.front()].pts) {
-        a = &x.slots[x.hist.front()];
+    if (target_time <= x.fslots[x.hist.front()].pts) {
+        a = &x.fslots[x.hist.front()];
     } else {
         for (int k = 0; k + 1 < n; k++) {
-            Impl::Slot &s0 = x.slots[x.hist[k]];
-            Impl::Slot &s1 = x.slots[x.hist[k + 1]];
+            Impl::Slot &s0 = x.fslots[x.hist[k]];
+            Impl::Slot &s1 = x.fslots[x.hist[k + 1]];
             if (s0.pts <= target_time && target_time < s1.pts) {
                 a = &s0;
                 b = &s1;
@@ -1571,7 +1571,7 @@ bool FrameGenerator::process(const pl_frame_mix *mix, double display_pts, double
             }
         }
         if (!a) {
-            a = &x.slots[x.hist.back()];
+            a = &x.fslots[x.hist.back()];
             if (target_time > a->pts + interval * 1.05)
                 x.st_late++;
         }
