@@ -336,6 +336,16 @@ Item {
 
                 Label {
                     Layout.alignment: Qt.AlignRight
+                    horizontalAlignment: Text.AlignRight
+                    text: Chiaki.window.frameGenStats
+                    visible: text.length > 0
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: "#a5d6a7"
+                }
+
+                Label {
+                    Layout.alignment: Qt.AlignRight
                     text: qsTr("queue depth avg")
                     font.pixelSize: 15
                     opacity: Chiaki.session ? 1 : 0

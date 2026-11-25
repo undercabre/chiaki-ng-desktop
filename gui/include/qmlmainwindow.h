@@ -52,6 +52,7 @@ class StatsOverlayWidget;
 class BufferedPlaybackPacerThread;
 class DeferredPresentPacerThread;
 class DeferredSwapThread;
+class FrameGenerator;
 
 class QmlMainWindow : public QWindow
 {
@@ -67,6 +68,7 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(int runtimeRendererBackend READ runtimeRendererBackend CONSTANT)
     Q_PROPERTY(double queueDepthAverage READ queueDepthAverage NOTIFY queueDepthAverageChanged)
     Q_PROPERTY(double pendingFrameAge READ pendingFrameAge NOTIFY pendingFrameAgeChanged)
+    Q_PROPERTY(QString frameGenStats READ frameGenStats NOTIFY frameGenStatsChanged)
 
 public:
     enum class UpdateRequestReason {
@@ -127,6 +129,7 @@ public:
 
     double queueDepthAverage() const;
     double pendingFrameAge() const;
+    QString frameGenStats() const { return frame_gen_stats; }
     QString describePlaceboDiscardReason(qint64 now_us) const;
 
     bool amdCard() const;
@@ -182,6 +185,7 @@ signals:
     void pendingFrameAgeChanged();
     void loadingTransitionCompleteChanged();
     void statsOverlayActiveChanged();
+    void frameGenStatsChanged();
 
 private:
     friend class BufferedPlaybackPacerThread;
@@ -290,6 +294,12 @@ private:
     quint64 placebo_queue_resets = 0;
     // Direct rendering retains the displayed mapping and replaces only pending input.
     bool bypass_frame_queue = true;
+    // Frame generation (desktop fork): requested in the settings at startup, null when unavailable
+    bool frame_gen_requested = false;
+    FrameGenerator *frame_gen = nullptr;
+    quint64 frame_gen_resets = 0;
+    QString frame_gen_stats;
+    void publishFrameGenStats();
     QMutex direct_frame_mutex;
     AVFrame *direct_pending_frame = nullptr;
     struct pl_frame direct_frame = {};

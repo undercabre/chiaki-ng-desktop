@@ -520,6 +520,9 @@ class Settings : public QObject
 		PlaceboFrameMixer GetPlaceboFrameMixer() const;
 		bool GetDirectFrameMapping() const { return settings.value("settings/direct_frame_mapping", true).toBool(); }
 		void SetDirectFrameMapping(bool enabled) { settings.setValue("settings/direct_frame_mapping", enabled); }
+		// NVIDIA optical flow frame generation (desktop fork), off by default
+		bool GetFrameGeneration() const { return settings.value("settings/frame_generation", false).toBool(); }
+		void SetFrameGeneration(bool enabled) { settings.setValue("settings/frame_generation", enabled); }
 		void SetPlaceboFrameMixer(PlaceboFrameMixer frame_mixer);
 
 		bool GetPlaceboDeinterlaceEnabled() const;

@@ -995,6 +995,29 @@ DialogView {
 
                     Label {
                         Layout.alignment: Qt.AlignRight
+                        text: qsTr("Generación de fotogramas NVIDIA:")
+                    }
+
+                    C.CheckBox {
+                        Layout.preferredWidth: 400
+                        text: qsTr("Experimental. Añade latencia (unos 40 ms con juegos a 30 fps). Reinicia la app.")
+                        checked: Chiaki.settings.frameGeneration
+                        onToggled: {
+                            if (checked === Chiaki.settings.frameGeneration)
+                                return;
+                            Chiaki.settings.frameGeneration = checked;
+                            if (Chiaki.settings.restartApplication())
+                                Qt.quit();
+                        }
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("(Desactivada)")
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
                         text: qsTr("Renderer Backend:")
                     }
 

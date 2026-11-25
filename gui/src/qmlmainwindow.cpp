@@ -1,4 +1,5 @@
 #include "qmlmainwindow.h"
+#include "framegen.h"
 #include "qmlbackend.h"
 #include "qmlsvgprovider.h"
 #include "chiaki/log.h"
@@ -173,12 +174,18 @@ public:
         packetLossRow = makeRow(tr("packet loss"), QColor(QStringLiteral("#ef9a9a")), titleFont, valueFont, packetLossValue);
         droppedFramesRow = makeRow(tr("dropped frames"), QColor(QStringLiteral("#ef9a9a")), titleFont, valueFont, droppedFramesValue);
         lostFramesRow = makeRow(tr("lost frames"), QColor(QStringLiteral("#ef9a9a")), titleFont, valueFont, lostFramesValue);
+        QFont frameGenFont;
+        frameGenFont.setPixelSize(14);
+        frameGenFont.setBold(true);
+        frameGenRow = makeRow(tr("frame gen"), QColor(QStringLiteral("#a5d6a7")), titleFont, frameGenFont, frameGenValue);
+        frameGenRow->setVisible(false);
 
         outer->addWidget(panel, 0, Qt::AlignRight | Qt::AlignVCenter);
 
         connect(owner, &QmlMainWindow::queueDepthAverageChanged, this, &StatsOverlayWidget::refresh);
         connect(owner, &QmlMainWindow::pendingFrameAgeChanged, this, &StatsOverlayWidget::refresh);
         connect(owner, &QmlMainWindow::droppedFramesChanged, this, &StatsOverlayWidget::refresh);
+        connect(owner, &QmlMainWindow::frameGenStatsChanged, this, &StatsOverlayWidget::refresh);
         if (backend) {
             connect(backend, &QmlBackend::sessionChanged, this, [this](StreamSession *s) {
                 setSession(s);
@@ -267,6 +274,8 @@ public:
         droppedFramesValue->setText(QString::number(droppedFrames));
         droppedFramesRow->setVisible(droppedFrames > 0);
 
+        frameGenValue->setText(owner ? owner->frameGenStats() : QString());
+        frameGenRow->setVisible(!frameGenValue->text().isEmpty());
         lostFramesRow->setVisible(hasSession);
         if (hasSession)
             lostFramesValue->setText(QString::number(session->GetFramesLost()));
@@ -290,6 +299,8 @@ private:
     QLabel *packetLossValue = nullptr;
     QLabel *droppedFramesValue = nullptr;
     QLabel *lostFramesValue = nullptr;
+    QWidget *frameGenRow = nullptr;
+    QLabel *frameGenValue = nullptr;
 };
 
 class DeferredPresentPacerThread final : public QThread
@@ -2679,6 +2690,9 @@ QmlMainWindow::~QmlMainWindow()
     pl_cache_destroy(&placebo_cache);
     pl_queue_destroy(&placebo_queue);
     pl_renderer_destroy(&placebo_renderer);
+    // render thread has stopped above, so nothing uses the generator any more
+    delete frame_gen;
+    frame_gen = nullptr;
     // User shader hooks hold a reference to the GPU (their descriptors destroy
     // buffers/textures via p->gpu), so they must be released before the GPU is.
     pl_mpv_user_shader_destroy(&fsr_hook);
@@ -2825,6 +2839,41 @@ void QmlMainWindow::setStatsOverlayActive(bool active)
         emit statsOverlayActiveChanged();
 }
 
+void QmlMainWindow::publishFrameGenStats()
+{
+    if (!frame_gen)
+        return;
+    FrameGenStats s;
+    if (!frame_gen->takeStats(&s, static_cast<qint64>(chiaki_time_now_monotonic_us())))
+        return;
+    auto ms = [](double v) {
+        return v < 0.0 ? QStringLiteral("n/d") : QStringLiteral("%1 ms").arg(v, 0, 'f', 2);
+    };
+    QString text;
+    if (!s.active) {
+        text = QStringLiteral("Frame gen: off (%1)").arg(frame_gen->status());
+    } else {
+        text = QStringLiteral("Frame gen: game %1 fps (stream %2)\n"
+                              "shown %3 real + %4 generated\n"
+                              "flow %5, interp %6, cpu %7\n"
+                              "delay +%8 ms, late %9, cuts %10, diff %11")
+            .arg(s.content_fps, 0, 'f', 1)
+            .arg(s.stream_fps, 0, 'f', 1)
+            .arg(s.real_fps, 0, 'f', 0)
+            .arg(s.generated_fps, 0, 'f', 0)
+            .arg(ms(s.flow_ms), ms(s.warp_ms), ms(s.cpu_ms))
+            .arg(s.delay_ms, 0, 'f', 0)
+            .arg(s.late)
+            .arg(s.cuts)
+            .arg(s.diff, 0, 'f', 4);
+    }
+    qCInfo(chiakiGui).noquote() << text.simplified();
+    QMetaObject::invokeMethod(this, [this, text]() {
+        frame_gen_stats = text;
+        emit frameGenStatsChanged();
+    }, Qt::QueuedConnection);
+}
+
 void QmlMainWindow::noteLoadingTransitionComplete()
 {
     armQuickNeedSync("loading_transition_complete");
@@ -2961,6 +3010,10 @@ const struct pl_filter_config *QmlMainWindow::effectiveFrameMixerConfig(const st
     if (bypass_frame_queue)
         return nullptr;
     Q_UNUSED(render_params);
+    // Frame generation takes the frames around each vsync from the queue's mixer (it replaces the
+    // blend), and a mixer also makes playback paced by the display refresh
+    if (frame_gen && frame_gen->ok())
+        return pl_find_filter_config("linear", PL_FILTER_FRAME_MIXING);
 
     switch (video_preset) {
     case VideoPreset::Fast:
@@ -2987,6 +3040,8 @@ bool QmlMainWindow::configuredFrameMixerEnabledForScheduling() const
 {
     if (bypass_frame_queue)
         return false;
+    if (frame_gen && frame_gen->ok())
+        return true;
     switch (video_preset) {
     case VideoPreset::Fast:
         return frame_mixer_config(settings) != nullptr;
@@ -4834,8 +4889,11 @@ void QmlMainWindow::doneOpenGLContextCurrent()
 
 void QmlMainWindow::init(Settings *settings, bool exit_app_on_stream_exit)
 {
-    bypass_frame_queue = settings->GetDirectFrameMapping();
     render_backend = settings->GetRenderBackend();
+    // Frame generation needs the frame queue (timestamps of every frame) and Vulkan
+    frame_gen_requested = settings->GetFrameGeneration() && render_backend == RenderBackend::Vulkan
+        && FrameGenerator::compiledIn();
+    bypass_frame_queue = settings->GetDirectFrameMapping() && !frame_gen_requested;
     setSurfaceType(render_backend == RenderBackend::Vulkan ? QWindow::VulkanSurface : QWindow::OpenGLSurface);
     qparams = {};
     qparams.drift_compensation = 1e-3;
@@ -5022,7 +5080,9 @@ void QmlMainWindow::init(Settings *settings, bool exit_app_on_stream_exit)
             VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,
             VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME,
             VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME,
+            nullptr, // VK_NV_optical_flow when frame generation is requested
         };
+        int num_opt_dev_extensions = 4;
 
         struct pl_vulkan_params vulkan_params = {
             .instance = placebo_vk_inst->instance,
@@ -5033,6 +5093,26 @@ void QmlMainWindow::init(Settings *settings, bool exit_app_on_stream_exit)
             .opt_extensions = opt_dev_extensions,
             .num_opt_extensions = 4,
         };
+#if defined(VK_NV_optical_flow) && VK_NV_optical_flow
+        // Frame generation: only touch the device setup when it is turned on and some GPU
+        // offers the extension, so the default path stays exactly as upstream
+        VkPhysicalDeviceOpticalFlowFeaturesNV optical_flow_features = {};
+        optical_flow_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPTICAL_FLOW_FEATURES_NV;
+        optical_flow_features.opticalFlow = VK_TRUE;
+        VkPhysicalDeviceFeatures2 frame_gen_features = {};
+        frame_gen_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        frame_gen_features.pNext = &optical_flow_features;
+        if (frame_gen_requested) {
+            if (FrameGenerator::instanceHasCapableDevice(placebo_vk_inst->instance, placebo_vk_inst->get_proc_addr)) {
+                opt_dev_extensions[num_opt_dev_extensions++] = FrameGenerator::extensionName();
+                vulkan_params.num_opt_extensions = num_opt_dev_extensions;
+                vulkan_params.features = &frame_gen_features;
+                vulkan_params.extra_queues |= FrameGenerator::queueFlag();
+            } else {
+                qCWarning(chiakiGui) << "Frame generation requested but no GPU offers VK_NV_optical_flow";
+            }
+        }
+#endif
         placebo_vulkan = pl_vulkan_create(placebo_log, &vulkan_params);
         if (!placebo_vulkan) {
             fallbackToOpenGL(QStringLiteral("Failed to create Vulkan device"));
@@ -5116,6 +5196,22 @@ renderer_backend_ready:
     );
 
     placebo_queue = pl_queue_create(placeboGpu());
+
+    if (frame_gen_requested) {
+        if (render_backend == RenderBackend::Vulkan && placebo_vulkan) {
+            frame_gen = new FrameGenerator(placebo_log, placebo_vulkan);
+            if (!frame_gen->ok()) {
+                frame_gen_stats = QStringLiteral("Frame generation off: %1").arg(frame_gen->status());
+                delete frame_gen;
+                frame_gen = nullptr;
+            } else {
+                frame_gen_stats = QStringLiteral("Frame generation ready");
+            }
+        } else {
+            frame_gen_stats = QStringLiteral("Frame generation off: needs the Vulkan renderer");
+        }
+        qCInfo(chiakiGui) << frame_gen_stats;
+    }
 
     if (render_backend == RenderBackend::Vulkan) {
         struct pl_vulkan_sem_params sem_params = {
@@ -7614,7 +7710,28 @@ void QmlMainWindow::render()
         logLatencyStats("render_prep", render_call_begin_us - render_entry_us_local);
     if (render_call_begin_us >= render_setup_begin_us)
         logRenderSetupStats(render_call_begin_us, render_call_begin_us - render_setup_begin_us);
-    if (!(bypass_frame_queue
+    // Frame generation: present a real or generated frame picked by the generator instead of
+    // the queue's blend. It falls back to the normal path whenever it has nothing to show.
+    bool frame_gen_presented = false;
+    struct pl_frame frame_gen_out = {};
+    if (frame_gen && !bypass_frame_queue && stream_active) {
+        // after a GPU error it turns itself off: process() returns false and the stats say why
+        if (frame_gen->ok() && frame_gen_resets != frame_mix_resets) {
+            frame_gen->reset();
+            frame_gen_resets = frame_mix_resets;
+        }
+        if (frame_gen->process(&frame_mix, qparams.pts, qparams.vsync_duration, &params, &target_frame, &frame_gen_out)) {
+            // the generator's output is already scaled and color mapped for this target
+            struct pl_render_params pass_params = pl_render_fast_params;
+            pass_params.dither_params = params.dither_params;
+            pass_params.background_transparency = params.background_transparency;
+            frame_gen_presented = pl_render_image(placebo_renderer, &frame_gen_out, &target_frame, &pass_params);
+            if (!frame_gen_presented)
+                qCWarning(chiakiGui) << "Failed to present a frame generation frame, using the normal path";
+        }
+        publishFrameGenStats();
+    }
+    if (!frame_gen_presented && !(bypass_frame_queue
         ? pl_render_image(placebo_renderer, &direct_render_frame, &target_frame, &params)
         : pl_render_image_mix(placebo_renderer, &frame_mix, &target_frame, &params)))
     {
