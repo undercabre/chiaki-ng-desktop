@@ -1023,7 +1023,7 @@ DialogView {
 
                     C.CheckBox {
                         Layout.preferredWidth: 400
-                        text: qsTr("Ratón = stick derecho, clic izq. = R2, clic der. = L2, WASD = stick izquierdo. Se aplica al iniciar la sesión.")
+                        text: qsTr("Distribución a pie de GTA 6: ratón = mirar, clic izq. = R2, clic der. = L2, WASD = moverse. Se aplica al iniciar la sesión.")
                         checked: Chiaki.settings.mouseStickEnabled
                         onToggled: Chiaki.settings.mouseStickEnabled = checked
                     }

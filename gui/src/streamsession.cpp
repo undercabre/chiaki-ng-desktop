@@ -933,7 +933,7 @@ void StreamSession::HandleMousePressEvent(QMouseEvent *event)
 		{
 			case Qt::LeftButton: keyboard_state.r2_state = 0xff; break;
 			case Qt::RightButton: keyboard_state.l2_state = 0xff; break;
-			case Qt::MiddleButton: keyboard_state.buttons |= CHIAKI_CONTROLLER_BUTTON_L1; break;
+			case Qt::MiddleButton: keyboard_state.buttons |= CHIAKI_CONTROLLER_BUTTON_R3; break;
 			default: break;
 		}
 		SendFeedbackState();
@@ -955,7 +955,7 @@ void StreamSession::HandleMouseReleaseEvent(QMouseEvent *event)
 		{
 			case Qt::LeftButton: keyboard_state.r2_state = 0; break;
 			case Qt::RightButton: keyboard_state.l2_state = 0; break;
-			case Qt::MiddleButton: keyboard_state.buttons &= ~CHIAKI_CONTROLLER_BUTTON_L1; break;
+			case Qt::MiddleButton: keyboard_state.buttons &= ~CHIAKI_CONTROLLER_BUTTON_R3; break;
 			default: break;
 		}
 		SendFeedbackState();
@@ -1054,6 +1054,11 @@ void StreamSession::HandleMouseWheelEvent(QWheelEvent *event)
 	const int dy = event->angleDelta().y();
 	if(!dy)
 		return;
+	// GTA 6 uses the D-pad for radio and explosives, so the wheel does
+	// nothing unless CHIAKI_MOUSE_WHEEL_DPAD=1.
+	static const bool wheel_dpad = qEnvironmentVariableIntValue("CHIAKI_MOUSE_WHEEL_DPAD") != 0;
+	if(!wheel_dpad)
+		return;
 	// Short D-pad press per notch: up = right, down = left
 	keyboard_state.buttons &= ~wheel_button;
 	wheel_button = dy > 0 ? CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT : CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT;
@@ -1080,16 +1085,20 @@ bool StreamSession::HandleGameKey(QKeyEvent *event)
 		case Qt::Key_S: idx = 1; break;
 		case Qt::Key_A: idx = 2; break;
 		case Qt::Key_D: idx = 3; break;
-		case Qt::Key_Space: button = CHIAKI_CONTROLLER_BUTTON_BOX; break;
-		case Qt::Key_Shift: button = CHIAKI_CONTROLLER_BUTTON_CROSS; break;
-		case Qt::Key_F: button = CHIAKI_CONTROLLER_BUTTON_PYRAMID; break;
-		case Qt::Key_R: button = CHIAKI_CONTROLLER_BUTTON_MOON; break;
-		case Qt::Key_Q: button = CHIAKI_CONTROLLER_BUTTON_L1; break;
-		case Qt::Key_E: button = CHIAKI_CONTROLLER_BUTTON_R1; break;
-		case Qt::Key_X: button = CHIAKI_CONTROLLER_BUTTON_L3; break;
-		case Qt::Key_C: button = CHIAKI_CONTROLLER_BUTTON_R3; break;
-		case Qt::Key_Tab: button = CHIAKI_CONTROLLER_BUTTON_TOUCHPAD; break;
-		case Qt::Key_Escape: button = CHIAKI_CONTROLLER_BUTTON_OPTIONS; break;
+		// GTA 6 on foot layout
+		case Qt::Key_Shift: button = CHIAKI_CONTROLLER_BUTTON_L3; break;       // run
+		case Qt::Key_Space: button = CHIAKI_CONTROLLER_BUTTON_CROSS; break;    // jump / climb
+		case Qt::Key_C: button = CHIAKI_CONTROLLER_BUTTON_BOX; break;          // crouch
+		case Qt::Key_E: button = CHIAKI_CONTROLLER_BUTTON_PYRAMID; break;      // interact
+		case Qt::Key_F: button = CHIAKI_CONTROLLER_BUTTON_MOON; break;         // melee
+		case Qt::Key_Q: button = CHIAKI_CONTROLLER_BUTTON_R1; break;           // cover
+		case Qt::Key_Tab: button = CHIAKI_CONTROLLER_BUTTON_L1; break;         // holster
+		case Qt::Key_M: button = CHIAKI_CONTROLLER_BUTTON_TOUCHPAD; break;     // map
+		case Qt::Key_1: button = CHIAKI_CONTROLLER_BUTTON_DPAD_UP; break;      // cellphone
+		case Qt::Key_2: button = CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT; break;    // radio
+		case Qt::Key_3: button = CHIAKI_CONTROLLER_BUTTON_DPAD_DOWN; break;    // objective
+		case Qt::Key_4: button = CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT; break;   // explosives
+		case Qt::Key_Escape: button = CHIAKI_CONTROLLER_BUTTON_OPTIONS; break; // pause
 		default: return false;
 	}
 	if(event->isAutoRepeat())
