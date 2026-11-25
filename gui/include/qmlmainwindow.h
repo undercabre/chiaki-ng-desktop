@@ -296,6 +296,8 @@ private:
     bool bypass_frame_queue = true;
     // Frame generation (desktop fork): requested in the settings at startup, null when unavailable
     bool frame_gen_requested = false;
+    bool mouse_stick_centered = false;
+    bool handleMouseStick(QMouseEvent *event);
     FrameGenerator *frame_gen = nullptr;
     quint64 frame_gen_resets = 0;
     QString frame_gen_stats;

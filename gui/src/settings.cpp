@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 
+#include <algorithm>
 #include <settings.h>
 #include <SDL.h>
 #include <QFile>
@@ -994,6 +995,26 @@ bool Settings::GetMouseTouchEnabled() const
 void Settings::SetMouseTouchEnabled(bool enabled)
 {
 	settings.setValue("settings/mouse_touch_enabled", enabled);
+}
+
+bool Settings::GetMouseStickEnabled() const
+{
+	return settings.value("settings/mouse_stick_enabled", false).toBool();
+}
+
+void Settings::SetMouseStickEnabled(bool enabled)
+{
+	settings.setValue("settings/mouse_stick_enabled", enabled);
+}
+
+int Settings::GetMouseStickSensitivity() const
+{
+	return std::clamp(settings.value("settings/mouse_stick_sensitivity", 30).toInt(), 1, 100);
+}
+
+void Settings::SetMouseStickSensitivity(int sensitivity)
+{
+	settings.setValue("settings/mouse_stick_sensitivity", std::clamp(sensitivity, 1, 100));
 }
 
 

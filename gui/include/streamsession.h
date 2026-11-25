@@ -95,6 +95,8 @@ class SdeckHapticsWorker;
 		bool enable_keyboard;
 		bool keyboard_controller_enabled;
 		bool mouse_touch_enabled;
+		bool mouse_stick_enabled;
+		int mouse_stick_sensitivity;
 		bool enable_dualsense;
 		bool auto_regist;
 		float haptic_override;
@@ -223,6 +225,21 @@ class StreamSession : public QObject
 		ChiakiControllerState touch_state;
 		QMap<int, uint8_t> touch_tracker;
 		int8_t mouse_touch_id;
+		// Mouse as right stick (keyboard and mouse game mode)
+		ChiakiControllerState mouse_state;
+		bool mouse_stick_enabled;
+		double mouse_stick_sensitivity;
+		double mouse_acc_x, mouse_acc_y;
+		double mouse_out_x, mouse_out_y;
+		QTimer *mouse_stick_timer;
+		QElapsedTimer mouse_stick_clock;
+		qint64 mouse_stick_last_ns;
+		bool game_keys[4];
+		int wheel_button;
+		QTimer *wheel_release_timer;
+		void MouseStickTick();
+		bool HandleGameKey(QKeyEvent *event);
+		void UpdateGameLeftStick();
 		ChiakiControllerState dpad_touch_state;
 		uint16_t dpad_touch_increment;
 		float trigger_override;
@@ -371,6 +388,9 @@ class StreamSession : public QObject
 		void HandleMouseReleaseEvent(QMouseEvent *event);
 		void HandleMousePressEvent(QMouseEvent *event);
 		void HandleMouseMoveEvent(QMouseEvent *event, qreal width, qreal height);
+		bool MouseStickEnabled() const { return mouse_stick_enabled; }
+		void HandleMouseStickDelta(qreal dx, qreal dy);
+		void HandleMouseWheelEvent(QWheelEvent *event);
 #if CHIAKI_GUI_ENABLE_SPEEX
 		bool ProcessMicFrame(int16_t *echo_buf);
 #endif

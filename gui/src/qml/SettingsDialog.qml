@@ -1018,6 +1018,50 @@ DialogView {
 
                     Label {
                         Layout.alignment: Qt.AlignRight
+                        text: qsTr("Teclado y ratón (modo juego):")
+                    }
+
+                    C.CheckBox {
+                        Layout.preferredWidth: 400
+                        text: qsTr("Ratón = stick derecho, clic izq. = R2, clic der. = L2, WASD = stick izquierdo. Se aplica al iniciar la sesión.")
+                        checked: Chiaki.settings.mouseStickEnabled
+                        onToggled: Chiaki.settings.mouseStickEnabled = checked
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("(Desactivado)")
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Sensibilidad del ratón:")
+                    }
+
+                    C.Slider {
+                        Layout.preferredWidth: 200
+                        from: 1
+                        to: 100
+                        stepSize: 1
+                        value: Chiaki.settings.mouseStickSensitivity
+                        onMoved: Chiaki.settings.mouseStickSensitivity = value
+                        Label {
+                            anchors {
+                                left: parent.right
+                                verticalCenter: parent.verticalCenter
+                                leftMargin: 10
+                            }
+                            text: parent.value.toFixed(0)
+                        }
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("(30)")
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
                         text: qsTr("Renderer Backend:")
                     }
 

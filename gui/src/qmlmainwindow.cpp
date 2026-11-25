@@ -31,6 +31,7 @@ extern "C" {
 #include <QStandardPaths>
 #include <QCoreApplication>
 #include <QGuiApplication>
+#include <QCursor>
 #include <QFile>
 #include <QWidget>
 #include <QLabel>
@@ -2772,6 +2773,7 @@ void QmlMainWindow::grabInput()
 {
     setCursor(Qt::ArrowCursor);
     grab_input++;
+    mouse_stick_centered = false;
     if (session)
         session->BlockInput(grab_input);
 }
@@ -7818,6 +7820,28 @@ bool QmlMainWindow::nvidiaCard() const
     return nvidia_card;
 }
 
+// Keyboard and mouse game mode: keep the cursor at the window centre and
+// turn its displacement into right-stick input.
+bool QmlMainWindow::handleMouseStick(QMouseEvent *event)
+{
+    if (!isActive()) {
+        mouse_stick_centered = false;
+        return true;
+    }
+    if (cursor().shape() != Qt::BlankCursor)
+        setCursor(Qt::BlankCursor);
+    const QPointF center(width() / 2, height() / 2);
+    if (mouse_stick_centered) {
+        const QPointF d = event->position() - center;
+        if (!d.isNull())
+            session->HandleMouseStickDelta(d.x(), d.y());
+    }
+    if (event->position() != center)
+        QCursor::setPos(mapToGlobal(center.toPoint()));
+    mouse_stick_centered = true;
+    return true;
+}
+
 bool QmlMainWindow::event(QEvent *event)
 {
     switch (event->type()) {
@@ -7827,6 +7851,8 @@ bool QmlMainWindow::event(QEvent *event)
         if (static_cast<QMouseEvent*>(event)->source() != Qt::MouseEventNotSynthesized)
             return true;
         if (session && !grab_input) {
+            if (event->type() == QEvent::MouseMove && session->MouseStickEnabled())
+                return handleMouseStick(static_cast<QMouseEvent*>(event));
             if (event->type() == QEvent::MouseMove)
                 session->HandleMouseMoveEvent(static_cast<QMouseEvent*>(event), width(), height());
             else if (event->type() == QEvent::MouseButtonPress)
@@ -7838,6 +7864,11 @@ bool QmlMainWindow::event(QEvent *event)
         QGuiApplication::sendEvent(quick_window, event);
         break;
     case QEvent::MouseButtonDblClick:
+        if (session && !grab_input && session->MouseStickEnabled()) {
+            // Qt replaces the second press with this event: treat it as a press
+            session->HandleMousePressEvent(static_cast<QMouseEvent*>(event));
+            return true;
+        }
         if(!settings->GetFullscreenDoubleClickEnabled())
             break;
         if (session && !grab_input) {
@@ -7859,6 +7890,13 @@ bool QmlMainWindow::event(QEvent *event)
             }
             if (e->timestamp())
                 session->HandleKeyboardEvent(e);
+            return true;
+        }
+        QGuiApplication::sendEvent(quick_window, event);
+        break;
+    case QEvent::Wheel:
+        if (session && !grab_input && session->MouseStickEnabled()) {
+            session->HandleMouseWheelEvent(static_cast<QWheelEvent*>(event));
             return true;
         }
         QGuiApplication::sendEvent(quick_window, event);

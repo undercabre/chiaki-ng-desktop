@@ -101,6 +101,8 @@ class QmlSettings : public QObject
 	Q_PROPERTY(int placeboFrameMixer READ placeboFrameMixer WRITE setPlaceboFrameMixer NOTIFY placeboFrameMixerChanged)
 	Q_PROPERTY(bool directFrameMapping READ directFrameMapping WRITE setDirectFrameMapping NOTIFY directFrameMappingChanged)
 	Q_PROPERTY(bool frameGeneration READ frameGeneration WRITE setFrameGeneration NOTIFY frameGenerationChanged)
+	Q_PROPERTY(bool mouseStickEnabled READ mouseStickEnabled WRITE setMouseStickEnabled NOTIFY mouseStickEnabledChanged)
+	Q_PROPERTY(int mouseStickSensitivity READ mouseStickSensitivity WRITE setMouseStickSensitivity NOTIFY mouseStickSensitivityChanged)
 	Q_PROPERTY(bool placeboDeinterlaceEnabled READ placeboDeinterlaceEnabled WRITE setPlaceboDeinterlaceEnabled NOTIFY placeboDeinterlaceEnabledChanged)
 	Q_PROPERTY(int placeboDeinterlacePreset READ placeboDeinterlacePreset WRITE setPlaceboDeinterlacePreset NOTIFY placeboDeinterlacePresetChanged)
 	Q_PROPERTY(int placeboDeinterlaceAlgorithm READ placeboDeinterlaceAlgorithm WRITE setPlaceboDeinterlaceAlgorithm NOTIFY placeboDeinterlaceAlgorithmChanged)
@@ -350,6 +352,10 @@ public:
     void setDirectFrameMapping(bool enabled);
     bool frameGeneration() const;
     void setFrameGeneration(bool enabled);
+    bool mouseStickEnabled() const;
+    void setMouseStickEnabled(bool enabled);
+    int mouseStickSensitivity() const;
+    void setMouseStickSensitivity(int sensitivity);
     void setPlaceboFrameMixer(int mixer);
 
     bool placeboDeinterlaceEnabled() const;
@@ -708,6 +714,8 @@ signals:
     void placeboFrameMixerChanged();
     void directFrameMappingChanged();
     void frameGenerationChanged();
+    void mouseStickEnabledChanged();
+    void mouseStickSensitivityChanged();
     void placeboDeinterlaceEnabledChanged();
     void placeboDeinterlacePresetChanged();
     void placeboDeinterlaceAlgorithmChanged();

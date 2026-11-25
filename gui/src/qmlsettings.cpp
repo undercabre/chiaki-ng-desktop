@@ -1002,6 +1002,32 @@ void QmlSettings::setFrameGeneration(bool enabled)
     emit frameGenerationChanged();
 }
 
+bool QmlSettings::mouseStickEnabled() const
+{
+    return settings->GetMouseStickEnabled();
+}
+
+void QmlSettings::setMouseStickEnabled(bool enabled)
+{
+    if (enabled == settings->GetMouseStickEnabled())
+        return;
+    settings->SetMouseStickEnabled(enabled);
+    emit mouseStickEnabledChanged();
+}
+
+int QmlSettings::mouseStickSensitivity() const
+{
+    return settings->GetMouseStickSensitivity();
+}
+
+void QmlSettings::setMouseStickSensitivity(int sensitivity)
+{
+    if (sensitivity == settings->GetMouseStickSensitivity())
+        return;
+    settings->SetMouseStickSensitivity(sensitivity);
+    emit mouseStickSensitivityChanged();
+}
+
 void QmlSettings::setPlaceboFrameMixer(int mixer)
 {
     settings->SetPlaceboFrameMixer(static_cast<PlaceboFrameMixer>(mixer));
@@ -1984,6 +2010,8 @@ void QmlSettings::refreshAllPlaceboKeys()
 {
     emit directFrameMappingChanged();
     emit frameGenerationChanged();
+    emit mouseStickEnabledChanged();
+    emit mouseStickSensitivityChanged();
     emit placeboUpscalerChanged();
     emit placeboPlaneUpscalerChanged();
     emit placeboDownscalerChanged();
