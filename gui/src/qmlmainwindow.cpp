@@ -1,5 +1,6 @@
 #include "qmlmainwindow.h"
 #include "framegen.h"
+#include "cursorclip.h"
 #include "qmlbackend.h"
 #include "qmlsvgprovider.h"
 #include "chiaki/log.h"
@@ -2773,6 +2774,7 @@ void QmlMainWindow::grabInput()
 {
     setCursor(Qt::ArrowCursor);
     grab_input++;
+    CursorClipRelease();
     mouse_stick_centered = false;
     if (session)
         session->BlockInput(grab_input);
@@ -7825,9 +7827,11 @@ bool QmlMainWindow::nvidiaCard() const
 bool QmlMainWindow::handleMouseStick(QMouseEvent *event)
 {
     if (!isActive()) {
+        CursorClipRelease();
         mouse_stick_centered = false;
         return true;
     }
+    CursorClipToWindow(this);
     if (cursor().shape() != Qt::BlankCursor)
         setCursor(Qt::BlankCursor);
     const QPointF center(width() / 2, height() / 2);
@@ -7850,7 +7854,11 @@ bool QmlMainWindow::event(QEvent *event)
     case QEvent::MouseButtonRelease:
         if (static_cast<QMouseEvent*>(event)->source() != Qt::MouseEventNotSynthesized)
             return true;
+        if (event->type() == QEvent::MouseMove && (!session || grab_input))
+            CursorClipRelease();
         if (session && !grab_input) {
+            if (!session->MouseStickEnabled())
+                CursorClipRelease();
             if (event->type() == QEvent::MouseMove && session->MouseStickEnabled())
                 return handleMouseStick(static_cast<QMouseEvent*>(event));
             if (event->type() == QEvent::MouseMove)
@@ -7910,7 +7918,14 @@ bool QmlMainWindow::event(QEvent *event)
         }
         QGuiApplication::sendEvent(quick_window, event);
         break;
+    case QEvent::WindowDeactivate:
+    case QEvent::FocusOut:
+    case QEvent::Hide:
+        CursorClipRelease();
+        mouse_stick_centered = false;
+        break;
     case QEvent::Close:
+        CursorClipRelease();
         if (!backend->closeRequested()) {
             event->ignore();
             return true;

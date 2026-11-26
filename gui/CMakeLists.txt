@@ -45,7 +45,9 @@ set(SOURCE_FILES
 	include/qmlmainwindow.h
 	src/qmlmainwindow.cpp
 	include/framegen.h
+	include/cursorclip.h
 	src/framegen.cpp
+	src/cursorclip.cpp
 	include/qmlbackend.h
 	src/qmlbackend.cpp
 	include/qmlcontroller.h
