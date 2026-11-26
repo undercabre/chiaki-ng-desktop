@@ -270,7 +270,7 @@ class Settings : public QObject
 		RumbleHapticsIntensity GetRumbleHapticsIntensity() const;
 		void SetRumbleHapticsIntensity(RumbleHapticsIntensity intensity);
 
-		bool GetShowStreamStats() const            { return settings.value("settings/show_stream_stats", false).toBool(); }
+		bool GetShowStreamStats() const            { return settings.value("settings/show_stream_stats", true).toBool(); }
 		void SetShowStreamStats(bool enabled)      { settings.setValue("settings/show_stream_stats", enabled); }
 
 		bool GetStreamerMode() const		{ return settings.value("settings/streamer_mode", false).toBool(); }
@@ -525,7 +525,7 @@ class Settings : public QObject
 		bool GetDirectFrameMapping() const { return settings.value("settings/direct_frame_mapping", true).toBool(); }
 		void SetDirectFrameMapping(bool enabled) { settings.setValue("settings/direct_frame_mapping", enabled); }
 		// NVIDIA optical flow frame generation (desktop fork), off by default
-		bool GetFrameGeneration() const { return settings.value("settings/frame_generation", false).toBool(); }
+		bool GetFrameGeneration() const { return settings.value("settings/frame_generation", true).toBool(); }
 		void SetFrameGeneration(bool enabled) { settings.setValue("settings/frame_generation", enabled); }
 		void SetPlaceboFrameMixer(PlaceboFrameMixer frame_mixer);
 

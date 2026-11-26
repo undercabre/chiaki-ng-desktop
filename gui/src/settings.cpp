@@ -999,7 +999,7 @@ void Settings::SetMouseTouchEnabled(bool enabled)
 
 bool Settings::GetMouseStickEnabled() const
 {
-	return settings.value("settings/mouse_stick_enabled", false).toBool();
+	return settings.value("settings/mouse_stick_enabled", true).toBool();
 }
 
 void Settings::SetMouseStickEnabled(bool enabled)

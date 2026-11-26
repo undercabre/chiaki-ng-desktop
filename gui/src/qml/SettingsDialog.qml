@@ -1013,7 +1013,7 @@ DialogView {
 
                     Label {
                         Layout.alignment: Qt.AlignRight
-                        text: qsTr("(Desactivada)")
+                        text: qsTr("(Activada)")
                     }
 
                     Label {
@@ -1030,7 +1030,7 @@ DialogView {
 
                     Label {
                         Layout.alignment: Qt.AlignRight
-                        text: qsTr("(Desactivado)")
+                        text: qsTr("(Activado)")
                     }
 
                     Label {
